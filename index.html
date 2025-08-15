@@ -2,78 +2,61 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Saturday Group Run Signup</title>
+  <title>Group Run Signup</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body{font-family:system-ui,Arial,sans-serif;max-width:700px;margin:2rem auto;padding:0 1rem;background:#f7f7f8;color:#222}
-    h1{margin-top:0}
-    .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-    label{display:block;margin:.5rem 0 .25rem}
-    input,select,button{font-size:16px;padding:.6rem .7rem;border:1px solid #cbd5e1;border-radius:10px}
-    button{cursor:pointer}
-    .row{display:flex;gap:.75rem;flex-wrap:wrap}
-    .row > *{flex:1 1 200px}
-    ul{list-style:none;padding-left:0}
-    li{padding:.35rem .6rem;border-bottom:1px dashed #e5e7eb}
-    .muted{color:#64748b}
-    .success{color:#0a7a3d}
-    .error{color:#b91c1c}
+    body { font-family: system-ui, Arial, sans-serif; max-width: 700px; margin: 2rem auto; padding: 0 1rem; background: #f7f7f8; color: #222; }
+    h1, h2 { margin-top: 0; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 1rem; }
+    input, select, textarea, button { font-size: 16px; padding: 0.6rem 0.7rem; border: 1px solid #cbd5e1; border-radius: 10px; margin-top: 0.25rem; width: 100%; }
+    button { cursor: pointer; margin-top: 0.5rem; }
+    ul { list-style: none; padding-left: 0; }
+    li { padding: 0.35rem 0.6rem; border-bottom: 1px dashed #e5e7eb; }
+    .success { color: #0a7a3d; }
+    .error { color: #b91c1c; }
   </style>
 </head>
 <body>
-  <h1>Saturday Group Run</h1>
-  <p class="muted">Join us for a group run this Saturday! We will be meeting at Dixie Farm Rd Park.
-    <br />
-    Pick your start time and add your name. This page updates in real time.
-  </p>
+  <h1>Group Run Meetups</h1>
 
-  <div class="card" style="margin-bottom:1rem">
-    <div class="row">
-      <div>
-        <label for="runDate">Run date (Saturday)</label>
-        <input type="date" id="runDate" />
-      </div>
-      <div>
-        <label for="meetTime">Meet time</label>
-        <select id="meetTime">
-          <option>6:00 AM</option>
-          <option>7:00 AM</option>
-        </select>
-      </div>
-    </div>
+  <div class="card">
+    <h2>Create a New Run</h2>
+    <label for="runDate">Date</label>
+    <input type="date" id="runDate">
 
-    <div class="row" style="margin-top:.75rem">
-      <div>
-        <label for="name">Your name</label>
-        <input type="text" id="name" placeholder="Jane Runner" />
-      </div>
-      <div style="display:flex;align-items:flex-end">
-        <button id="signupBtn">Sign Up</button>
-      </div>
-    </div>
+    <label for="runTime">Time</label>
+    <input type="text" id="runTime" placeholder="7:00 AM">
 
-    <p id="status" class="muted" style="margin-top:.5rem"></p>
+    <label for="runLocation">Location</label>
+    <input type="text" id="runLocation" placeholder="Centennial Park">
+
+    <label for="runNotes">Notes (optional)</label>
+    <textarea id="runNotes" placeholder="Easy pace, bring water"></textarea>
+
+    <button id="createRunBtn">Create Run</button>
+    <p id="createStatus"></p>
   </div>
 
   <div class="card">
-    <h3 id="listTitle">Signups for <span id="dateText"></span></h3>
-    <div class="row" style="margin-bottom:.5rem">
-      <button id="refreshBtn" title="Force reload from server (normally not needed)">Refresh</button>
-    </div>
-    <div class="row">
-      <div class="card" style="flex:1;background:#fafafa">
-        <h4>6:00 AM</h4>
-        <ul id="list6"></ul>
-      </div>
-      <div class="card" style="flex:1;background:#fafafa">
-        <h4>7:00 AM</h4>
-        <ul id="list7"></ul>
-      </div>
-    </div>
+    <h2>Upcoming Runs</h2>
+    <ul id="runsList"></ul>
   </div>
 
-  
-  <script type="module" src="script.js"></script>
+  <div class="card">
+    <h2>Join a Run</h2>
+    <label for="joinRunSelect">Select a run</label>
+    <select id="joinRunSelect"></select>
 
+    <label for="participantName">Your name (or "+1")</label>
+    <input type="text" id="participantName" placeholder="+1">
+
+    <button id="joinRunBtn">Join Run</button>
+    <p id="joinStatus"></p>
+
+    <h3>Participants</h3>
+    <ul id="participantsList"></ul>
+  </div>
+
+  <script type="module" src="script.js"></script>
 </body>
 </html>

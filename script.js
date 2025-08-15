@@ -19,105 +19,124 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// --- Helpers ---
-const $ = (id) => document.getElementById(id);
-const statusEl = $("status");
-const runDateEl = $("runDate");
-const nameEl = $("name");
-const meetTimeEl = $("meetTime");
-const list6 = $("list6");
-const list7 = $("list7");
-const dateText = $("dateText");
+const $ = id => document.getElementById(id);
 
-// --- Default to next Saturday ---
-function nextSaturdayISO() {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = (6 - day + 7) % 7 || 7;
-  d.setDate(d.getDate() + diff);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+// --- CREATE RUN ---
+async function createRun() {
+  const date = $("runDate").value;
+  const time = $("runTime").value.trim();
+  const location = $("runLocation").value.trim();
+  const notes = $("runNotes").value.trim();
+  const statusEl = $("createStatus");
+  statusEl.textContent = "";
+  statusEl.className = "";
+
+  if (!date || !time || !location) {
+    statusEl.textContent = "Please fill out date, time, and location.";
+    statusEl.className = "error";
+    return;
+  }
+
+  const runId = `${date}_${time.replace(/[:\s]/g,"")}_${location.toLowerCase().replace(/\s+/g,"_")}`;
+  const runRef = doc(db, "runs", runId);
+
+  try {
+    await setDoc(runRef, { date, time, location, notes, createdAt: serverTimestamp() }, { merge: false });
+    statusEl.textContent = "Run created!";
+    statusEl.className = "success";
+    $("runDate").value = $("runTime").value = $("runLocation").value = $("runNotes").value = "";
+  } catch(e) {
+    console.error(e);
+    statusEl.textContent = "Could not create run.";
+    statusEl.className = "error";
+  }
 }
 
-function prettyDate(iso) {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+$("createRunBtn").addEventListener("click", createRun);
+
+// --- LIST RUNS ---
+const runsList = $("runsList");
+const joinRunSelect = $("joinRunSelect");
+
+function populateRunDropdown() {
+  onSnapshot(query(collection(db, "runs"), orderBy("createdAt")), snapshot => {
+    runsList.innerHTML = "";
+    joinRunSelect.innerHTML = "";
+    snapshot.forEach(docSnap => {
+      const run = docSnap.data();
+      const li = document.createElement("li");
+      li.textContent = `${run.date} @ ${run.time} - ${run.location} ${run.notes ? `(${run.notes})` : ""}`;
+      runsList.appendChild(li);
+
+      const option = document.createElement("option");
+      option.value = docSnap.id;
+      option.textContent = `${run.date} @ ${run.time} - ${run.location}`;
+      joinRunSelect.appendChild(option);
+    });
+    // trigger participant list for first run
+    if(joinRunSelect.value) watchParticipants(joinRunSelect.value);
+  });
 }
 
-runDateEl.value = nextSaturdayISO();
-dateText.textContent = prettyDate(runDateEl.value);
+populateRunDropdown();
 
-// --- Real-time listener ---
-let unsubscribe = null;
-function watchDate(dateISO) {
-  if (unsubscribe) unsubscribe();
-  dateText.textContent = prettyDate(dateISO);
-  list6.innerHTML = "";
-  list7.innerHTML = "";
+// --- JOIN RUN ---
+const participantsList = $("participantsList");
+let unsubscribeParticipants = null;
 
-  const qAll = query(collection(db, "runs", dateISO, "signups"), orderBy("createdAt"));
-  unsubscribe = onSnapshot(qAll, (snap) => {
-    list6.innerHTML = "";
-    list7.innerHTML = "";
-    snap.forEach((docSnap) => {
+function watchParticipants(runId) {
+  if (unsubscribeParticipants) unsubscribeParticipants();
+  participantsList.innerHTML = "";
+
+  const participantsQuery = collection(db, "runs", runId, "participants");
+  unsubscribeParticipants = onSnapshot(participantsQuery, snapshot => {
+    participantsList.innerHTML = "";
+    snapshot.forEach(docSnap => {
       const data = docSnap.data();
       const li = document.createElement("li");
       li.textContent = data.name;
-      if (data.meetTime === "6:00 AM") list6.appendChild(li);
-      else list7.appendChild(li);
+      participantsList.appendChild(li);
     });
   });
 }
 
-watchDate(runDateEl.value);
-runDateEl.addEventListener("change", () => {
-  if (!runDateEl.value) return;
-  watchDate(runDateEl.value);
+$("joinRunSelect").addEventListener("change", () => {
+  watchParticipants(joinRunSelect.value);
 });
 
-// --- Prevent duplicate signups ---
-function makeId(name, meetTime) {
-  const slug = meetTime === "6:00 AM" ? "6am" : "7am";
-  const norm = name.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
-  return `${slug}__${norm}`;
-}
-
-// --- Sign up function ---
-async function signUp() {
-  const name = nameEl.value.trim();
-  const meetTime = meetTimeEl.value;
-  const dateISO = runDateEl.value;
-
+$("joinRunBtn").addEventListener("click", async () => {
+  let name = $("participantName").value.trim();
+  const runId = joinRunSelect.value;
+  const statusEl = $("joinStatus");
   statusEl.textContent = "";
-  if (!name) { statusEl.textContent = "Please enter your name."; statusEl.className = "error"; return; }
-  if (!dateISO) { statusEl.textContent = "Please choose a valid date."; statusEl.className = "error"; return; }
+  statusEl.className = "";
 
-  const signupId = makeId(name, meetTime);
-  const ref = doc(db, "runs", dateISO, "signups", signupId);
+  if (!runId) {
+    statusEl.textContent = "Select a run to join.";
+    statusEl.className = "error";
+    return;
+  }
+
+  const isAnonymous = !name || name === "+1";
+  if (isAnonymous) {
+    name = "+1";
+  }
+
+  // Use random ID for anonymous; deterministic ID for named participants
+  const participantRef = isAnonymous
+    ? doc(collection(db, "runs", runId, "participants"))
+    : doc(db, "runs", runId, "participants",
+          name.toLowerCase().replace(/\s+/g,"_").replace(/[^a-z0-9_+]/g,"")
+      );
 
   try {
-    await setDoc(ref, {
-      name,
-      meetTime,
-      createdAt: serverTimestamp()
-    }, { merge: false });
-
-    statusEl.textContent = `You're in for ${meetTime} on ${prettyDate(dateISO)}!`;
+    await setDoc(participantRef, { name, joinedAt: serverTimestamp() });
+    statusEl.textContent = "You joined!";
     statusEl.className = "success";
-    nameEl.value = "";
-  } catch (e) {
-    statusEl.textContent = "Could not save your signup. Try again.";
-    statusEl.className = "error";
+    $("participantName").value = "";
+  } catch(e) {
     console.error(e);
+    statusEl.textContent = "Could not join run.";
+    statusEl.className = "error";
   }
-}
-
-$("signupBtn").addEventListener("click", signUp);
-$("refreshBtn").addEventListener("click", () => {
-  watchDate(runDateEl.value);
-  statusEl.textContent = "Refreshed.";
-  statusEl.className = "muted";
-  setTimeout(() => (statusEl.textContent = ""), 1200);
 });
