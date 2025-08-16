@@ -59,11 +59,18 @@ const runsList = $("runsList");
 const joinRunSelect = $("joinRunSelect");
 
 function populateRunDropdown() {
+  const todayStr = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+
   onSnapshot(query(collection(db, "runs"), orderBy("createdAt")), snapshot => {
     runsList.innerHTML = "";
     joinRunSelect.innerHTML = "";
+    
     snapshot.forEach(docSnap => {
       const run = docSnap.data();
+
+      // Skip past runs
+      if (run.date < todayStr) return;
+
       const li = document.createElement("li");
       li.textContent = `${run.date} @ ${run.time} - ${run.location} ${run.notes ? `(${run.notes})` : ""}`;
       runsList.appendChild(li);
@@ -73,10 +80,12 @@ function populateRunDropdown() {
       option.textContent = `${run.date} @ ${run.time} - ${run.location}`;
       joinRunSelect.appendChild(option);
     });
+
     // trigger participant list for first run
     if(joinRunSelect.value) watchParticipants(joinRunSelect.value);
   });
 }
+
 
 populateRunDropdown();
 
